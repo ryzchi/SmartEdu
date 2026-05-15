@@ -44,14 +44,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text(
-          'Reset Code Generated',
+          'Reset Code Sent',
           style: TextStyle(color: Color(0xFF1a2b4a), fontSize: 18),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Your password reset code:',
+              'A password reset code has been generated and displayed for demo purposes. In a real app, this would be sent to your email.',
               style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
             ),
             const SizedBox(height: 12),

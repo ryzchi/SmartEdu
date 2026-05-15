@@ -606,8 +606,8 @@ class NewsPage extends StatelessWidget {
                   color: const Color(0xFF94A3B8),
                 ),
               ),
-              Row(
-                children: const [
+              const Row(
+                children: [
                   Text(
                     'REPUBLIC OF THE PHILIPPINES',
                     style: TextStyle(
@@ -661,8 +661,8 @@ class NewsPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            Row(
-              children: const [
+            const Row(
+              children: [
                 Icon(Icons.facebook, size: 18, color: Color(0xFF94A3B8)),
                 SizedBox(width: 16),
                 Icon(Icons.language, size: 18, color: Color(0xFF94A3B8)),

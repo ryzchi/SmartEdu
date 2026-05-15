@@ -13,6 +13,27 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   int _selectedIndex = 0;
   bool _isMobile = false;
 
+  final List<Map<String, String>> _demoAssignments = [
+    {
+      'title': 'Math Homework',
+      'subject': 'Mathematics',
+      'deadline': 'May 30, 2026',
+      'description': 'Complete problems 1-20 on page 42.',
+    },
+    {
+      'title': 'Science Project',
+      'subject': 'Science',
+      'deadline': 'June 2, 2026',
+      'description': 'Build a simple volcano model and write a short report.',
+    },
+    {
+      'title': 'English Essay',
+      'subject': 'English',
+      'deadline': 'June 5, 2026',
+      'description': 'Write a 300-word essay on your favorite book.',
+    },
+  ];
+
   Future<void> _logout() async {
     await _authService.logout();
     if (mounted) {
@@ -935,74 +956,53 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   }
 
   // ==================== ASSIGNMENTS PAGE ====================
-  Widget _buildAssignments() {
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(_isMobile ? 16 : 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Assignments',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1a2b4a),
-            ),
+ Widget _buildAssignments() {
+  return SingleChildScrollView(
+    padding: EdgeInsets.all(_isMobile ? 16 : 24),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Assignments',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1a2b4a),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Track and manage your assignments',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-          ),
-          const SizedBox(height: 24),
-          _assignmentCard(
-            'Math Problem Set - Chapter 4',
-            'Mathematics',
-            'Due Oct 28, 2024',
-            'Complete exercises 1-20 on quadratic equations. Show all solutions.',
-            0.75,
-            Colors.blue,
-          ),
-          const SizedBox(height: 12),
-          _assignmentCard(
-            'Science Lab Report',
-            'Science',
-            'Due Oct 30, 2024',
-            'Write a complete lab report on the cell observation experiment.',
-            0.30,
-            Colors.green,
-          ),
-          const SizedBox(height: 12),
-          _assignmentCard(
-            'English Essay',
-            'English',
-            'Due Nov 2, 2024',
-            'Write a 500-word essay on Philippine literature.',
-            0.0,
-            Colors.orange,
-          ),
-          const SizedBox(height: 12),
-          _assignmentCard(
-            'History Timeline',
-            'History',
-            'Due Nov 5, 2024',
-            'Create an interactive timeline of Philippine Revolution events.',
-            0.50,
-            Colors.red,
-          ),
-          const SizedBox(height: 12),
-          _assignmentCard(
-            'Filipino Pagbasa',
-            'Filipino',
-            'Due Nov 8, 2024',
-            'Read and summarize Florante at Laura chapters 1-5.',
-            0.0,
-            Colors.teal,
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Track and manage your assignments',
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+        ),
+        const SizedBox(height: 24),
+
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _demoAssignments.length,
+          itemBuilder: (context, index) {
+            final doc = _demoAssignments[index];
+
+            return Column(
+              children: [
+                _assignmentCard(
+                  doc['title']!,
+                  doc['subject'] ?? 'No Subject',
+                  'Due ${doc['deadline']}',
+                  doc['description'] ?? '',
+                  0.0,
+                  Colors.blue,
+                ),
+                const SizedBox(height: 12),
+              ],
+            );
+          },
+        )
+      ],
+    ),
+  );
+}
 
   Widget _assignmentCard(
     String title,

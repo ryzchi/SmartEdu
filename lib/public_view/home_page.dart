@@ -216,7 +216,7 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _buildHeroSection(BuildContext context, bool isMobile) {
-    return Container(
+    return SizedBox(
       height: 870,
       width: double.infinity,
       child: Stack(
@@ -362,11 +362,11 @@ class _HomePageState extends State<HomePage>
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(4),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: const Color(0x337E5700),
+            color: Color(0x337E5700),
             blurRadius: 25,
-            offset: const Offset(0, 20),
+            offset: Offset(0, 20),
           ),
         ],
       ),
