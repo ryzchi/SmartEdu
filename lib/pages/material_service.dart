@@ -1,37 +1,28 @@
-import 'dart:io';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'dart:io';
+import '../services/api_client.dart';
 
 class MaterialService {
-  final FirebaseStorage _storage = FirebaseStorage.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ApiClient _api = ApiClient();
 
-  // Upload File
-  Future<String> uploadFile(File file, String fileName) async {
-    final ref = _storage.ref().child('materials/$fileName');
-    await ref.putFile(file);
-    return await ref.getDownloadURL();
-  }
-
-  // Save Metadata
-  Future<void> saveMaterial({
+  Future<Map<String, dynamic>> uploadMaterial({
+    required File file,
     required String title,
     required String subject,
-    required String url,
     required String type,
   }) async {
-    await _firestore.collection('materials').add({
-      'title': title,
-      'subject': subject,
-      'url': url,
-      'type': type,
-      'createdAt': Timestamp.now(),
-    });
+    return await _api.uploadFile(
+      'upload_material.php',
+      'file',
+      file.path,
+      fields: {
+        'title': title,
+        'subject': subject,
+        'type': type,
+      },
+    );
   }
 
-  // Delete
   Future<void> deleteMaterial(String docId, String fileUrl) async {
-    await _firestore.collection('materials').doc(docId).delete();
-    await FirebaseStorage.instance.refFromURL(fileUrl).delete();
+    throw UnsupportedError('Delete is not implemented for the PHP backend yet');
   }
 }

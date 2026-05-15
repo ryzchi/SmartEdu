@@ -20,8 +20,19 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   bool _isSuccess = false;
 
   Future<void> _change() async {
+    final email = AuthService().currentUserEmail;
+    if (email == null) {
+      setState(() {
+        _isLoading = false;
+        _isSuccess = false;
+        _message = 'Could not determine current user email.';
+      });
+      return;
+    }
+
     setState(() => _isLoading = true);
     final result = await AuthService().changePassword(
+      email,
       _oldPasswordController.text,
       _newPasswordController.text,
       _confirmPasswordController.text,

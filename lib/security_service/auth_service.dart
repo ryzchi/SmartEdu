@@ -1,6 +1,6 @@
-import 'dart:convert';
-import 'dart:math';
+﻿import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_client.dart';
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -15,7 +15,8 @@ class AuthService {
   static const int maxAttempts = 3;
   static const Duration lockoutDuration = Duration(minutes: 30);
 
-  // LAZY INITIALIZATION - auto-init when needed
+  final ApiClient _api = ApiClient();
+
   Future<SharedPreferences> get _preferences async {
     if (_prefs == null) {
       _prefs = await SharedPreferences.getInstance();
@@ -57,12 +58,6 @@ class AuthService {
     return 'Account locked. Try again in ${minutes}m ${seconds}s';
   }
 
-  // Generate 6-digit PIN
-  String _generatePin() {
-    final random = Random();
-    return (100000 + random.nextInt(900000)).toString();
-  }
-
   Future<Map<String, dynamic>> register(
     String name,
     String email,
@@ -74,98 +69,53 @@ class AuthService {
       return {'success': false, 'message': 'Name is required'};
     }
 
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}');
     if (!emailRegex.hasMatch(email)) {
-      return {
-        'success': false,
-        'message': 'Please enter a valid email address',
-      };
+      return {'success': false, 'message': 'Please enter a valid email address'};
     }
 
     if (password.length < 6) {
-      return {
-        'success': false,
-        'message': 'Password must be at least 6 characters',
-      };
+      return {'success': false, 'message': 'Password must be at least 6 characters'};
     }
 
     if (password != confirmPassword) {
       return {'success': false, 'message': 'Passwords do not match'};
     }
 
-    final prefs = await _preferences;
-    final storedUsers = prefs.getStringList('registered_users') ?? [];
-
-    for (var u in storedUsers) {
-      final decoded = jsonDecode(u);
-      if (decoded['email'] == email) {
-        return {'success': false, 'message': 'Email already registered'};
-      }
+    try {
+      final response = await _api.post('register.php', {
+        'name': name,
+        'email': email,
+        'password': password,
+        'role': role.toLowerCase(),
+      });
+      return {
+        'success': response['success'] == true,
+        'message': response['message'] ?? 'Registration failed',
+        'email': response['email'],
+        'pin': response['pin'],
+      };
+    } catch (_) {
+      return {'success': false, 'message': 'Unable to contact server'};
     }
-
-    // Generate verification PIN
-    final pin = _generatePin();
-
-    final newUser = jsonEncode({
-      'name': name,
-      'email': email,
-      'password': password,
-      'role': role,
-      'verified': false,
-      'pin': pin,
-    });
-
-    storedUsers.add(newUser);
-    await prefs.setStringList('registered_users', storedUsers);
-    await prefs.setString('pending_verification_email', email);
-
-    return {
-      'success': true,
-      'message': 'Registration successful. Verify your account.',
-      'email': email,
-      'pin': pin,
-    };
   }
 
   Future<Map<String, dynamic>> verifyPin(
     String email,
     String enteredPin,
   ) async {
-    final prefs = await _preferences;
-    final storedUsers = prefs.getStringList('registered_users') ?? [];
-    String? correctPin;
-
-    for (var u in storedUsers) {
-      final decoded = jsonDecode(u);
-      if (decoded['email'] == email) {
-        correctPin = decoded['pin'];
-        break;
-      }
+    try {
+      final response = await _api.post('verify.php', {
+        'email': email,
+        'pin': enteredPin,
+      });
+      return {
+        'success': response['success'] == true,
+        'message': response['message'] ?? 'Verification failed',
+      };
+    } catch (_) {
+      return {'success': false, 'message': 'Unable to contact server'};
     }
-
-    if (correctPin == null) {
-      return {'success': false, 'message': 'User not found'};
-    }
-
-    if (correctPin != enteredPin) {
-      return {'success': false, 'message': 'Incorrect verification code'};
-    }
-
-    // Mark as verified
-    final updated = <String>[];
-    for (var u in storedUsers) {
-      final decoded = jsonDecode(u);
-      if (decoded['email'] == email) {
-        decoded['verified'] = true;
-        decoded.remove('pin');
-      }
-      updated.add(jsonEncode(decoded));
-    }
-
-    await prefs.setStringList('registered_users', updated);
-    await prefs.remove('pending_verification_email');
-
-    return {'success': true, 'message': 'Email verified successfully!'};
   }
 
   Future<Map<String, dynamic>> login(
@@ -174,8 +124,6 @@ class AuthService {
     String role,
     bool rememberMe,
   ) async {
-    final prefs = await _preferences;
-
     if (isLockedOut) {
       return {
         'success': false,
@@ -183,47 +131,38 @@ class AuthService {
       };
     }
 
-    final storedUsers = prefs.getStringList('registered_users') ?? [];
-    bool found = false;
-    Map<String, dynamic>? user;
+    try {
+      final response = await _api.post('login.php', {
+        'email': email,
+        'password': password,
+        'role': role.toLowerCase(),
+      });
 
-    // Check registered users first
-    for (var u in storedUsers) {
-      final decoded = jsonDecode(u);
-      if (decoded['email'] == email &&
-          decoded['password'] == password &&
-          decoded['role'].toString().toLowerCase() == role.toLowerCase()) {
-        if (decoded['verified'] == true) {
-          found = true;
-          user = decoded;
+      if (response['success'] == true) {
+        _failedAttempts = 0;
+        _lockoutEndTime = null;
+        _currentUser = response['user'];
+        final prefs = await _preferences;
+        if (rememberMe) {
+          await prefs.setString('user_session', jsonEncode(_currentUser));
+          await prefs.setBool('remember_me', true);
         } else {
-          return {
-            'success': false,
-            'message': 'Please verify your account first.',
-            'needsVerification': true,
-            'email': email,
-          };
+          await prefs.remove('user_session');
+          await prefs.setBool('remember_me', false);
         }
-        break;
-      }
-    }
-
-    if (found) {
-      _failedAttempts = 0;
-      _lockoutEndTime = null;
-      _currentUser = user;
-
-      if (rememberMe) {
-        await prefs.setString('user_session', jsonEncode(user));
-        await prefs.setBool('remember_me', true);
-      } else {
-        await prefs.remove('user_session');
-        await prefs.setBool('remember_me', false);
+        return {'success': true, 'message': response['message'] ?? 'Login successful'};
       }
 
-      return {'success': true, 'message': 'Login successful'};
-    } else {
-      _failedAttempts++;
+      if (response['needsVerification'] == true) {
+        return {
+          'success': false,
+          'message': response['message'] ?? 'Please verify your account first.',
+          'needsVerification': true,
+          'email': response['email'],
+        };
+      }
+
+      _failedAttempts += 1;
       if (_failedAttempts >= maxAttempts) {
         _lockoutEndTime = DateTime.now().add(lockoutDuration);
         return {
@@ -231,32 +170,33 @@ class AuthService {
           'message': 'Too many failed attempts. Account locked for 30 minutes.',
         };
       }
+
       final remaining = maxAttempts - _failedAttempts;
       return {
         'success': false,
-        'message': 'Invalid credentials. $remaining attempt(s) remaining.',
+        'message': response['message'] ?? 'Invalid credentials. $remaining attempt(s) remaining.',
       };
+    } catch (_) {
+      return {'success': false, 'message': 'Unable to contact server'};
     }
   }
 
   Future<Map<String, dynamic>> forgotPassword(String email) async {
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}');
     if (!emailRegex.hasMatch(email)) {
-      return {
-        'success': false,
-        'message': 'Please enter a valid email address',
-      };
+      return {'success': false, 'message': 'Please enter a valid email address'};
     }
 
-    final pin = _generatePin();
-    final prefs = await _preferences;
-    await prefs.setString('reset_pin_$email', pin);
-
-    return {
-      'success': true,
-      'message': 'Password reset code generated.',
-      'pin': pin,
-    };
+    try {
+      final response = await _api.post('forgot_password.php', {'email': email});
+      return {
+        'success': response['success'] == true,
+        'message': response['message'] ?? 'Failed to generate reset code',
+        'pin': response['pin'],
+      };
+    } catch (_) {
+      return {'success': false, 'message': 'Unable to contact server'};
+    }
   }
 
   Future<Map<String, dynamic>> resetPassword(
@@ -266,84 +206,49 @@ class AuthService {
     String confirmPassword,
   ) async {
     if (newPassword.length < 6) {
-      return {
-        'success': false,
-        'message': 'Password must be at least 6 characters',
-      };
+      return {'success': false, 'message': 'Password must be at least 6 characters'};
     }
     if (newPassword != confirmPassword) {
       return {'success': false, 'message': 'Passwords do not match'};
     }
 
-    final prefs = await _preferences;
-    final storedPin = prefs.getString('reset_pin_$email');
-    if (storedPin == null || storedPin != enteredPin) {
-      return {'success': false, 'message': 'Invalid reset code'};
+    try {
+      final response = await _api.post('reset_password.php', {
+        'email': email,
+        'pin': enteredPin,
+        'new_password': newPassword,
+        'confirm_password': confirmPassword,
+      });
+      return {'success': response['success'] == true, 'message': response['message'] ?? 'Failed to reset password'};
+    } catch (_) {
+      return {'success': false, 'message': 'Unable to contact server'};
     }
-
-    final storedUsers = prefs.getStringList('registered_users') ?? [];
-    final updated = <String>[];
-    bool found = false;
-
-    for (var u in storedUsers) {
-      final decoded = jsonDecode(u);
-      if (decoded['email'] == email) {
-        decoded['password'] = newPassword;
-        found = true;
-      }
-      updated.add(jsonEncode(decoded));
-    }
-
-    if (found) {
-      await prefs.setStringList('registered_users', updated);
-      await prefs.remove('reset_pin_$email');
-      return {'success': true, 'message': 'Password reset successful'};
-    }
-
-    return {'success': false, 'message': 'User not found'};
   }
 
   Future<Map<String, dynamic>> changePassword(
+    String email,
     String oldPassword,
     String newPassword,
     String confirmPassword,
   ) async {
-    if (_currentUser == null) {
-      return {'success': false, 'message': 'Not logged in'};
-    }
     if (newPassword.length < 6) {
-      return {
-        'success': false,
-        'message': 'Password must be at least 6 characters',
-      };
+      return {'success': false, 'message': 'Password must be at least 6 characters'};
     }
     if (newPassword != confirmPassword) {
       return {'success': false, 'message': 'Passwords do not match'};
     }
 
-    final prefs = await _preferences;
-    final storedUsers = prefs.getStringList('registered_users') ?? [];
-    final updated = <String>[];
-    bool found = false;
-
-    for (var u in storedUsers) {
-      final decoded = jsonDecode(u);
-      if (decoded['email'] == _currentUser!['email']) {
-        if (decoded['password'] != oldPassword) {
-          return {'success': false, 'message': 'Incorrect current password'};
-        }
-        decoded['password'] = newPassword;
-        found = true;
-      }
-      updated.add(jsonEncode(decoded));
+    try {
+      final response = await _api.post('change_password.php', {
+        'email': email,
+        'old_password': oldPassword,
+        'new_password': newPassword,
+        'confirm_password': confirmPassword,
+      });
+      return {'success': response['success'] == true, 'message': response['message'] ?? 'Failed to change password'};
+    } catch (_) {
+      return {'success': false, 'message': 'Unable to contact server'};
     }
-
-    if (found) {
-      await prefs.setStringList('registered_users', updated);
-      return {'success': true, 'message': 'Password changed successfully'};
-    }
-
-    return {'success': false, 'message': 'User not found'};
   }
 
   Future<void> logout() async {

@@ -1,8 +1,8 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../assignment_service.dart';
+import '../security_service/auth_service.dart';
 
 class SubmitAssignmentPage extends StatefulWidget {
   final String assignmentId;
@@ -16,6 +16,7 @@ class SubmitAssignmentPage extends StatefulWidget {
 class _SubmitAssignmentPageState extends State<SubmitAssignmentPage> {
   File? file;
   bool loading = false;
+  final AssignmentService _assignmentService = AssignmentService();
 
   Future pickFile() async {
     final result = await FilePicker.platform.pickFiles();
@@ -29,53 +30,56 @@ class _SubmitAssignmentPageState extends State<SubmitAssignmentPage> {
   Future uploadSubmission() async {
     if (file == null) return;
 
+    final studentEmail = AuthService().currentUserEmail;
+    if (studentEmail == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Student email is not available.')),
+      );
+      return;
+    }
+
     setState(() => loading = true);
 
-    String fileName = file!.path.split('/').last;
-
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('submissions/$fileName');
-
-    await ref.putFile(file!);
-    String url = await ref.getDownloadURL();
-
-    await FirebaseFirestore.instance.collection('submissions').add({
-      'assignmentId': widget.assignmentId,
-      'fileUrl': url,
-      'studentName': 'Student', // replace with auth later
-      'submittedAt': Timestamp.now(),
-      'status': 'pending',
-    });
+    final result = await _assignmentService.submitAssignment(
+      assignmentId: widget.assignmentId,
+      filePath: file!.path,
+      studentEmail: studentEmail,
+    );
 
     setState(() => loading = false);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Submitted successfully!")),
-      );
-      Navigator.pop(context);
+      if (result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Submitted successfully!')),
+        );
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'] ?? 'Submission failed')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Submit Assignment")),
+      appBar: AppBar(title: const Text('Submit Assignment')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             ElevatedButton(
               onPressed: pickFile,
-              child: const Text("Pick File"),
+              child: const Text('Pick File'),
             ),
             const SizedBox(height: 10),
-            Text(file != null ? file!.path.split('/').last : "No file selected"),
+            Text(file != null ? file!.path.split('/').last : 'No file selected'),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: loading ? null : uploadSubmission,
-              child: Text(loading ? "Uploading..." : "Submit"),
+              child: Text(loading ? 'Uploading...' : 'Submit'),
             ),
           ],
         ),

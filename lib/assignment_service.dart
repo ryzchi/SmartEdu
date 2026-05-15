@@ -1,29 +1,41 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import '../services/api_client.dart';
 
 class AssignmentService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ApiClient _api = ApiClient();
 
-  Future<void> createAssignment({
+  Future<List<Map<String, dynamic>>> fetchAssignments() async {
+    final response = await _api.get('assignments.php');
+    if (response['success'] == true) {
+      return List<Map<String, dynamic>>.from((response['assignments'] ?? []) as List);
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>> createAssignment({
     required String title,
     required String description,
-    required DateTime deadline,
+    required String deadline,
   }) async {
-    await _firestore.collection('assignments').add({
+    return _api.post('assignments.php', {
       'title': title,
       'description': description,
       'deadline': deadline,
-      'createdAt': Timestamp.now(),
     });
   }
 
-  Future<void> submitAssignment({
+  Future<Map<String, dynamic>> submitAssignment({
     required String assignmentId,
-    required String fileUrl,
+    required String filePath,
+    required String studentEmail,
   }) async {
-    await _firestore.collection('submissions').add({
-      'assignmentId': assignmentId,
-      'fileUrl': fileUrl,
-      'submittedAt': Timestamp.now(),
-    });
+    return _api.uploadFile(
+      'submit_assignment.php',
+      'file',
+      filePath,
+      fields: {
+        'assignment_id': assignmentId,
+        'student_email': studentEmail,
+      },
+    );
   }
 }
