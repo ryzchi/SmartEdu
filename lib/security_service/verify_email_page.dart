@@ -15,6 +15,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
   bool _isVerifying = false;
   bool _isVerified = false;
   String? _errorMessage;
+  
 
   Future<void> _verify() async {
     final pin = _pinControllers.map((c) => c.text).join();
