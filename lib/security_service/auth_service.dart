@@ -15,24 +15,6 @@ class AuthService {
   static const int maxAttempts = 3;
   static const Duration lockoutDuration = Duration(minutes: 30);
 
-  static const Map<String, Map<String, String>> demoCredentials = {
-    'student': {
-      'email': 'student@gmail.com',
-      'password': '123456789',
-      'name': 'Juan Dela Cruz',
-    },
-    'faculty': {
-      'email': 'userfc@dpnhs.edu.ph',
-      'password': 'fc123456789',
-      'name': 'Maria Santos',
-    },
-    'teacher': {
-      'email': 'usertc@dpnhs.edu.ph',
-      'password': 'tc123456789',
-      'name': 'Maria Santos',
-    },
-  };
-
   // LAZY INITIALIZATION - auto-init when needed
   Future<SharedPreferences> get _preferences async {
     if (_prefs == null) {
@@ -223,27 +205,6 @@ class AuthService {
           };
         }
         break;
-      }
-    }
-
-    // Demo accounts for when there is no registered user database.
-    if (!found) {
-      final roleLower = role.toLowerCase();
-      final demoRole = roleLower == 'faculty'
-          ? 'faculty'
-          : roleLower == 'teacher'
-              ? 'teacher'
-              : 'student';
-      final demo = demoCredentials[demoRole];
-
-      if (demo != null && email == demo['email'] && password == demo['password']) {
-        found = true;
-        user = {
-          'name': demo['name'],
-          'email': demo['email'],
-          'role': role,
-          'verified': true,
-        };
       }
     }
 
