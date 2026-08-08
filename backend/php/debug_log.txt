@@ -1,0 +1,42 @@
+2026-06-25 12:04:43 - POST: Array
+(
+    [assignment_id] => 7
+    [student_email] => alicaway@gmail.com
+    [comment] => hahaha
+    [file_name] => POINT OF SALE OVERVIEW.pdf
+)
+
+2026-06-25 12:04:43 - FILES: Array
+(
+    [file] => Array
+        (
+            [name] => POINT OF SALE OVERVIEW.pdf
+            [type] => application/octet-stream
+            [tmp_name] => C:\xampp\tmp\phpEEAE.tmp
+            [error] => 0
+            [size] => 1960730
+        )
+
+)
+
+2026-06-25 12:17:33 - POST: Array
+(
+    [assignment_id] => 7
+    [student_email] => hermosa@gmail.com
+    [comment] => 12345
+    [file_name] => ALICAWAY-IMRAD.pdf
+)
+
+2026-06-25 12:17:33 - FILES: Array
+(
+    [file] => Array
+        (
+            [name] => ALICAWAY-IMRAD.pdf
+            [type] => application/octet-stream
+            [tmp_name] => C:\xampp\tmp\phpAD75.tmp
+            [error] => 0
+            [size] => 359085
+        )
+
+)
+
